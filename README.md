@@ -38,8 +38,15 @@
 | Skill | 内容 |
 |-------|------|
 | [VFS 虚拟文件系统层](data-path/vfs-layer/SKILL.md) | VFS 作为核心桥梁、Lookup/Open/Read/Write 实现、Handle 管理、内部文件系统 |
+| [端到端写入追踪](data-path/end-to-end-write/SKILL.md) | 一次 write() 的完整 12 步调用链：syscall → FUSE → VFS → Chunk → S3，每步附函数签名和文件:行号 |
 | [Chunk 存储与缓存](data-path/chunk-cache/SKILL.md) | ChunkStore 接口、Disk Cache/Memory Cache 双层缓存、Page 64KB 对齐、Writeback/Prefetch |
 | [Slice 压缩与碎片整理](data-path/slice-compaction/SKILL.md) | BST Slice 树、碎片化问题、Compact 策略、文件结束位置处理 |
+
+### 🗺️ 存储布局
+
+| Skill | 内容 |
+|-------|------|
+| [存储布局全貌](storage-layout/SKILL.md) | 三层介质数据组织：Redis Key 全景/SQL 表映射/对象存储 Key 命名规范/本地缓存目录结构/反向映射关系 |
 
 ### 🔗 FUSE 与接入层
 
@@ -63,7 +70,7 @@
 
 ## 推荐学习路线
 
-路线将 16 篇专题与 JuiceFS 源码阅读穿插结合，按四阶段推进，共约 6 周。
+路线将 18 篇专题与 JuiceFS 源码阅读穿插结合，按四阶段推进，共约 6 周。
 
 ---
 
@@ -81,7 +88,7 @@
 
 ---
 
-### 📅 第二阶段：核心数据流（第 2-3 周，5 篇 Skill）
+### 📅 第二阶段：核心数据流（第 2-3 周，6 篇 Skill）
 
 **目标**：追踪从 FUSE 到对象存储的完整读写链路，理解元数据引擎的核心抽象。
 
@@ -92,12 +99,13 @@
 | 第 13-14 天 | [Chunk 存储与缓存](data-path/chunk-cache/SKILL.md) | ChunkStore 如何管理双层缓存，Page 对齐机制，Writeback 回写策略 |
 | 第 15-16 天 | [Slice 压缩与碎片整理](data-path/slice-compaction/SKILL.md) | BST 树如何索引文件数据，Compact 触发时机与流程 |
 | 第 17-18 天 | [FUSE 接口实现](fuse/SKILL.md) | go-fuse/v2 RawFileSystem 与 POSIX 的映射关系，内核态→用户态数据传递 |
+| 第 19-20 天 | [端到端写入追踪](data-path/end-to-end-write/SKILL.md) | 一次 write() 的完整 12 步调用链，每层函数签名+数据变换，理解"write()返回≠数据在S3" |
 
-**里程碑**：能画出一条 4KB 写入从 `write()` syscall → FUSE → VFS → Cache → ObjectStorage 的完整调用图，附每层涉及的函数名和文件:行号。
+**里程碑**：能对着源码画出一条 4KB 写入从 `write()` syscall → FUSE → VFS → Cache → S3 的完整调用图，附每层涉及的函数名和文件:行号，并能解释每个阶段的延迟。
 
 ---
 
-### 📅 第三阶段：元数据与对象存储引擎（第 4-5 周，5 篇 Skill）
+### 📅 第三阶段：元数据、对象存储与布局（第 4-5 周，6 篇 Skill）
 
 **目标**：深入理解三种元数据引擎的实现差异，掌握对象存储的适配模式。
 
@@ -107,9 +115,10 @@
 | 第 23-25 天 | [SQL 引擎实现](metadata/sql-engine/SKILL.md) | XORM 三层表设计（jfs_node/jfs_edge/jfs_symlink），MySQL/PG/SQLite 的事务差异处理 |
 | 第 26-27 天 | [ObjectStorage 层](object-storage/SKILL.md) | ObjectStorage 接口的核心方法，S3 后端如何实现 MultipartUpload，Encrypt 装饰器模式 |
 | 第 28-29 天 | [S3 Gateway](gateway/SKILL.md) | MinIO 如何将 S3 API 映射到 `pkg/fs/` 的文件操作，多用户隔离 |
-| 第 30-31 天 | [Sync 同步引擎](sync-engine/SKILL.md) | 多 worker 并发同步、checkpoint 断点续传、inode 映射 |
+| 第 30-31 天 | [存储布局全貌](storage-layout/SKILL.md) | 三层介质的数据组织，从 Redis Key → S3 Key → 缓存文件的反向映射，可脱离 JuiceFS 客户端手动验证数据完整性 |
+| 第 32-33 天 | [Sync 同步引擎](sync-engine/SKILL.md) | 多 worker 并发同步、checkpoint 断点续传、inode 映射 |
 
-**里程碑**：能对比 Redis/SQL/TiKV 三种引擎在 Lookup 实现上的代码差异，能说出每种引擎的适用场景。
+**里程碑**：能对比 Redis/SQL/TiKV 三种引擎的存储布局差异，能从 S3 key 反向定位到文件和 offset，能用纯 Redis+S3 命令重建文件内容。
 
 ---
 
@@ -119,8 +128,8 @@
 
 | 天数 | Skill | 核心收获 |
 |------|-------|---------|
-| 第 32-35 天 | [Mount 全流程](cli/mount-flow/SKILL.md) | format 写入了什么、mount 初始化了哪些对象、session 注册流程、第一个 Read 请求的完整路径 |
-| 第 36-40 天 | [调试工具与代码贡献](debug/SKILL.md) | 用 pprof/profile/stats/dump 诊断问题，看懂 debug 输出，按 CONTRIBUTING.md 提交 PR |
+| 第 34-37 天 | [Mount 全流程](cli/mount-flow/SKILL.md) | format 写入了什么、mount 初始化了哪些对象、session 注册流程、第一个 Read 请求的完整路径 |
+| 第 38-42 天 | [调试工具与代码贡献](debug/SKILL.md) | 用 pprof/profile/stats/dump 诊断问题，看懂 debug 输出，按 CONTRIBUTING.md 提交 PR |
 
 **里程碑**：能独立完成一个简单的 Bug fix：在 Issue 列表中找到你的第一个 Good First Issue，定位代码、修改、测试、提 PR。
 
@@ -171,6 +180,8 @@ juicefs-skills/
 ├── data-path/                      # 数据路径
 │   ├── vfs-layer/
 │   │   └── SKILL.md                # VFS 虚拟文件系统层
+│   ├── end-to-end-write/
+│   │   └── SKILL.md                # 端到端写入追踪
 │   ├── chunk-cache/
 │   │   └── SKILL.md                # Chunk 存储与缓存
 │   └── slice-compaction/
@@ -182,6 +193,8 @@ juicefs-skills/
 ├── gateway/                        # S3 Gateway
 │   └── SKILL.md
 ├── sync-engine/                    # 数据同步
+│   └── SKILL.md
+├── storage-layout/                 # 存储布局
 │   └── SKILL.md
 └── debug/                          # 调试与贡献
     └── SKILL.md
